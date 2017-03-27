@@ -173,7 +173,6 @@ def main():
     if not mFileIn:
         print("Sorry, an input file must be provided!  Please provide one and rerun")
     aDict = listOfGeneNames(mFileIn)
-    print(aDict)
     aResult = []
     if homologyLookup:
         for k,v in aDict.items():
@@ -182,7 +181,6 @@ def main():
     else:
         for k,v in aDict.items():
             vList = v
-            print(vList)
             for vItem in vList:
                 aResultItem = lookupEnsembleID(k, vItem, genomeName, verboseBool)
                 aResult.append(aResultItem)
