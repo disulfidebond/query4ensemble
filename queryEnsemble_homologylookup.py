@@ -33,6 +33,8 @@ def listOfGeneNames(l):
             v = iSplitList
             fileDict[k] = v
     return fileDict
+
+    
 def lookupEnsembleID(ugeneID, ensQuery, genomeName, verboseBool):
     if verboseBool:
         print("Checking")
@@ -87,7 +89,7 @@ def checkGeneWithEnsemble(g_id, g, genomeName, verboseBool):
         else:
             return 0
 
-def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, genomeName, verboseBool):
+def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, genomeName, verboseBool, searchType):
     uniqueID = ugeneID
     returnItemsList = []
     for itm in ensQuery:
@@ -101,7 +103,7 @@ def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, genomeName, verboseBool
         idName = itm
         # ?content-type=application/json;format=condensed;target_species=human;type=orthologues
         ext1 = "?content-type=application/json;format=condensed;"
-        targetSpecies = "target_species=human;"
+        targetSpecies = "target_species=" + genomeName + ";"
         ext2 = "type=orthologues"
         q = server+lookupIDstring+speciesString+idName+ext1+targetSpecies+ext2
         r = requests.get(q, headers={ "Content-Type" : "application/json"})
@@ -109,8 +111,13 @@ def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, genomeName, verboseBool
             if verboseBool:
                 print itm+"\t"+"MATCH ERROR OR NO MATCH"
             # return (uniqueID, (itm, "MATCH_ERROR"))
-            returnItemsList.append((uniqueID, (itm, "MATCH_ERROR")))
-            continue
+            if searchType > 1:
+                l_itm = lookupEnsembleID(ugeneID, ensQuery, genomeName, verboseBool)
+                returnItemsList.append(l_itm)
+                continue
+            else:
+                returnItemsList.append((uniqueID, (itm, "MATCH_ERROR")))
+                continue
         else:
             decoded = r.json()
             if not decoded:
@@ -159,6 +166,7 @@ def main():
     parser.add_argument('-g', '--genome', dest='genome', help='name for target genome to query')
     parser.add_argument('-H', '--homology', dest='homology', help='homology lookup that target genome will be queried against')
     parser.add_argument('-v', '--verbose', dest='verbose', help='verbose output, will provide all errors as a header, proceeded by the line \"###Results\"')
+    parser.add_argument('-t', '--type', dest='type', help='Only requried for homology, ignored otherwise\n3 types of searches,1,2,3\n1 -> strict will reject any searches that do not strictly match the homology term\n2 -> lenient will attempt to match a homology term, then attempt to match a term using a cross-ref lookup but add a warning tag \"#\"\n 3-> lax will attempt to match a homology term, then automatically match the term using a cross reference lookup\n\n')
     args = parser.parse_args()
     verboseBool = False
     if args.verbose:
@@ -166,6 +174,15 @@ def main():
     homologyLookup = False
     if args.homology:
         homologyLookup = True
+    criteriaType = None
+    if homologyLookup:
+        try:
+            criteriaType = int(args.type)
+        except ValueError:
+            print("It looks like you may have made a typo for the type of homology lookup")
+            print("you entered")
+            print(args.type)
+            print("but only an argument of 1 2 or 3 can be used.  Please re-enter!")
     genomeName = args.genome
     if not genomeName:
         print("Sorry, a genome name must be provided! Please provide one and rerun")
@@ -176,7 +193,7 @@ def main():
     aResult = []
     if homologyLookup:
         for k,v in aDict.items():
-            aResultItem = lookupEnsembleHomology_NoSequence(k,v, genomeName, verboseBool)
+            aResultItem = lookupEnsembleHomology_NoSequence(k,v, genomeName, verboseBool, criteriaType)
             aResult.append(aResultItem)
     else:
         for k,v in aDict.items():
