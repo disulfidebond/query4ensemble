@@ -46,7 +46,6 @@ def lookupEnsembleHomologyErrorCheck(ugeneID, ensQuery, genomeName, queryName):
     targetSpecies = "target_species=" + queryName + ";"
     ext2 = "type=orthologues"
     q = server+lookupIDstring+speciesString+idName+ext1+targetSpecies+ext2
-    # print(q)
     r = requests.get(q, headers={ "Content-Type" : "application/json"})
     if not r.ok:
         return (uniqueID, (ensQuery, 0))
@@ -105,9 +104,7 @@ def lookupEnsembleID(ugeneID, ensQuery, genomeName, verboseBool):
             if verboseBool:
                 print("Found match for")
                 print(res)
-            # rList.append([(uniqueID, (ensQuery, ensembleName))])
             return (uniqueID, (ensQuery, ensembleName)) # change to: if return True Below, check xref Ensemble, if return true, return gene, else return no match query
-    # return rList
 
 
 def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, queryName, genomeName, verboseBool, searchType):
@@ -205,7 +202,6 @@ def main():
     parser = argparse.ArgumentParser(description='Parse Ensemble Data')
     parser.add_argument('-i', '--input', dest='input', help='Input gene list to query Ensemble REST database')
     parser.add_argument('-g', '--genome', dest='genome', help='name for target genome')
-    # parser.add_argument('-q', '--query', dest='query', help='name for query against genome, or what you are searching against.   Ignored if homology is not selected.')
     parser.add_argument('-H', '--homology', dest='homology', help='homology lookup that target genome will be queried against')
     parser.add_argument('-v', '--verbose', dest='verbose', help='verbose True or False, will provide all errors as a header, proceeded by the line \"###Results\"')
     parser.add_argument('-t', '--type', dest='type', help='Only requried for homology, ignored otherwise\nArgument is an int: 3 types of searches,1,2,3\n1 -> strict will reject any searches that do not strictly match the homology term\n2 -> lenient will attempt to match a homology term, then attempt to match a term using a cross-ref lookup but add a warning tag \"#\"\n 3-> lax will attempt to match a homology term, then automatically match the term using a cross reference lookup\n\n')
@@ -213,8 +209,6 @@ def main():
     verboseBool = False
     queryName = ""
     genomeName = ""
-#    if args.query:
-#        queryName = args.query
     if args.verbose:
         verboseBool = True
     homologyLookup = False
@@ -231,7 +225,6 @@ def main():
             print(args.type)
             print("but only an argument of 1 2 or 3 can be used.  Please re-enter!")
     genomeName = args.genome
-#    queryName = args.query
     if not genomeName:
         print("Sorry, a genome name must be provided! Please provide one and rerun")
     mFileIn = args.input
@@ -258,7 +251,6 @@ def main():
         print("true")
         for itm in aResult: # reformat Output, or set flag for lookupEnsembleID
             for l_of_itms in itm:
-                # l_of_itms = itm
                 s = str(l_of_itms[0]) + "," + str(l_of_itms[1][0]) + "," + str(l_of_itms[1][1])
                 print s
     else:
