@@ -88,15 +88,11 @@ def lookupEnsembleID(ugeneID, ensQuery, genomeName, verboseBool):
         else:
             print("Error")
         return (uniqueID, (ensQuery, 0))
-        # rList.append([(uniqueID, (ensQuery, "MATCH ERROR"))])
-        # r.raise_for_status()
-        # sys.exit()
     else:
         decoded = r.json()
         if not decoded:
             if verboseBool:
-                print("couldn't find match")
-            # rList.append([(uniqueID, (ensQuery, "NO MATCH"))])
+                print("couldn't find match in Ensembl Lookup")
             return (uniqueID, (ensQuery, 0))
         else:
             res = decoded[0]
@@ -105,11 +101,13 @@ def lookupEnsembleID(ugeneID, ensQuery, genomeName, verboseBool):
                 print("Found match for")
                 print(res)
             return (uniqueID, (ensQuery, ensembleName)) # change to: if return True Below, check xref Ensemble, if return true, return gene, else return no match query
+    # return rList
 
 
 def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, queryName, genomeName, verboseBool, searchType):
     uniqueID = ugeneID
     returnItemsList = []
+    print(ensQuery)
     for itm in ensQuery:
         print("looking up")
         print(itm)
@@ -131,21 +129,31 @@ def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, queryName, genomeName, 
             if verboseBool:
                 print("NO Homology Match!")
                 print itm+"\t"+"MATCH ERROR OR NO MATCH"
-            # return (uniqueID, (itm, "MATCH_ERROR"))
             if searchType > 1:
-                print("Trying new search")
                 l_itm = lookupEnsembleID(ugeneID, itm, queryName, verboseBool)
-                print(l_itm)
-                if not l_itm[1][1]:
+                if l_itm[1][1]:
                     l_itm_recheck = lookupEnsembleID(ugeneID, itm, genomeName, verboseBool)
-                    l_itm_recheck_Final = lookupEnsembleHomologyErrorCheck(ugeneID, l_itm_recheck[1][0], genomeName, queryName)
-                    if not l_itm_recheck_Final[1][1]:
-                        new_l_itm = "NO MATCH"
+                    if verboseBool:
+                        print("Trying new search")
+                        print(l_itm)
+                    if l_itm_recheck[1][0]:
+                        l_itm_recheck_Final = lookupEnsembleHomologyErrorCheck(ugeneID, l_itm_recheck[1][0], genomeName, queryName)
+                        if not l_itm_recheck_Final[1][1]:
+                            if searchType > 2:
+                                new_l_itm = l_itm[1][1] + "#"
+                                l_itm = (l_itm[0], (l_itm[1][0], new_l_itm))
+                            else:
+                                new_l_itm = "NO MATCH"
+                                l_itm = (l_itm[0], (l_itm[1][0], new_l_itm))
+                        else:
+                            new_l_itm = l_itm_recheck_Final[1][1]
+                            l_itm = (l_itm[0], (l_itm[1][0], new_l_itm))
                     else:
-                        new_l_itm = l_itm[1][0] + "#"
+                        new_l_itm = "NO MATCH"
+                        l_itm = (l_itm[0], (l_itm[1][0], new_l_itm))
                 else:
-                    new_l_itm = l_itm[1][1] + "#"
-                l_itm = (l_itm[0], (l_itm[1][0], new_l_itm))
+                    new_l_itm = "NO MATCH"
+                    l_itm = (l_itm[0], (l_itm[1][0], new_l_itm))
                 returnItemsList.append(l_itm)
                 continue
             else:
@@ -161,7 +169,6 @@ def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, queryName, genomeName, 
                     print(itm)
                 continue
             elif "error" in decoded:
-                # return (uniqueID, (itm, "NO MATCH")) # alternative output to above
                 returnItemsList.append((uniqueID, (itm, "NO MATCH")))
                 if verboseBool:
                     print("No Match for")
@@ -173,7 +180,6 @@ def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, queryName, genomeName, 
                     res = decoded["data"][0]["homologies"][0]["id"]
                 except IndexError:
                     res = noHomologyString
-                returnItemsList.append((uniqueID, (itm, res)))
                 # optional: run error check here, error check
                 # re-queries with ID to verify gene ID matches Ensemble ID
                 # and throws error if it does not
@@ -195,14 +201,13 @@ def lookupEnsembleHomology_NoSequence(ugeneID, ensQuery, queryName, genomeName, 
                         print(firstRetry)
                         sys.exit()
                 else:
-                    # return (uniqueID, (itm, res))
-                    returnItemsList.append((uniqueID, (itm, res)))
+                    returnItemsList.append((uniqueID, (new_itm, res)))
     return returnItemsList
 def main():
     parser = argparse.ArgumentParser(description='Parse Ensemble Data')
     parser.add_argument('-i', '--input', dest='input', help='Input gene list to query Ensemble REST database')
-    parser.add_argument('-g', '--genome', dest='genome', help='name for target genome')
-    parser.add_argument('-H', '--homology', dest='homology', help='homology lookup that target genome will be queried against')
+    parser.add_argument('-g', '--genome', dest='genome', help='the genome of the organism that is being studied')
+    parser.add_argument('-H', '--homology', dest='homology', help='the target organism to find homology with the specified genome using ENSEMBL queries')
     parser.add_argument('-v', '--verbose', dest='verbose', help='verbose True or False, will provide all errors as a header, proceeded by the line \"###Results\"')
     parser.add_argument('-t', '--type', dest='type', help='Only requried for homology, ignored otherwise\nArgument is an int: 3 types of searches,1,2,3\n1 -> strict will reject any searches that do not strictly match the homology term\n2 -> lenient will attempt to match a homology term, then attempt to match a term using a cross-ref lookup but add a warning tag \"#\"\n 3-> lax will attempt to match a homology term, then automatically match the term using a cross reference lookup\n\n')
     args = parser.parse_args()
@@ -232,6 +237,7 @@ def main():
         print("Sorry, an input file must be provided!  Please provide one and rerun")
     aDict = listOfGeneNames(mFileIn)
     aResult = []
+    print(aDict)
     if homologyLookup:
         print("Running homologylookup")
         for k,v in aDict.items():
@@ -251,6 +257,7 @@ def main():
         print("true")
         for itm in aResult: # reformat Output, or set flag for lookupEnsembleID
             for l_of_itms in itm:
+                # l_of_itms = itm
                 s = str(l_of_itms[0]) + "," + str(l_of_itms[1][0]) + "," + str(l_of_itms[1][1])
                 print s
     else:
